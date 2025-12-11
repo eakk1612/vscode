@@ -1,7 +1,7 @@
 # app.py
 from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
-import joblib, time, json
+import joblib, time, json, os
 from rule_based_db import check_rule_based
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -80,4 +80,5 @@ def images(filename):
 
 # --------------------- Run Server ---------------------
 if __name__ == "__main__":
-    app.run(debug=True, threaded=True)
+    port = int(os.environ.get("PORT", 5000))  # ใช้ PORT ของ Render หรือ default 5000
+    app.run(host="0.0.0.0", port=port, threaded=True)
