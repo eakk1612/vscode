@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CPE Chat Bot</title>
+
+<style>
+  :root{
+    --bg:#0f1720; --panel:#0b1220; --card:#0f1726; --muted:#9aa4b2; --accent:#10a37f;
+    --light-bg:#f4f6f8; --light-panel:#fff; --light-card:#fff; --light-text:#111;
+  }
+  /* Avatar Animation (AI typing) */
+@keyframes aiTyping {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.13); }
+  100% { transform: scale(1); }
+}
+
+.avatar.ai-typing {
+  animation: aiTyping 0.8s infinite ease-in-out;
+}
+
+  /* avatar แสดงโลโก้ AI */
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+  html,body{height:100%;margin:0;font-family:Inter, "Segoe UI", Roboto, Arial; background:var(--bg); color:#e6eef6;}
+  body.light{background:var(--light-bg); color:var(--light-text);}
+
+  /* layout */
+  .app{display:flex;height:100vh;gap:18px;padding:18px;box-sizing:border-box;}
+  .sidebar{width:260px;background:rgba(255,255,255,0.03);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px;}
+  .main{flex:1;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:transparent;}
+  .topbar{height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;}
+  .chat-wrap{flex:1;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;background:var(--card);}
+
+  /* sidebar items */
+  .btn{display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;cursor:pointer;border:none;background:transparent;color:inherit;}
+  .new-chat{background:linear-gradient(90deg,var(--accent),#0bc7a1);color:white;font-weight:600;}
+  .history-list{flex:1;overflow:auto;padding-top:8px;display:flex;flex-direction:column;gap:8px;}
+  .history-item{padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);cursor:pointer;font-size:14px;}
+  .small{font-size:13px;color:var(--muted);}
+
+  /* messages area */
+  .messages{flex:1;padding:20px;display:flex;flex-direction:column;gap:12px;overflow:auto;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);}
+  .msg-row{display:flex;gap:12px;align-items:flex-start;max-width:90%;}
+  .msg-row.user{align-self:flex-end;flex-direction:row-reverse;}
+  .avatar{width:36px;height:36px;border-radius:50%;background:#111;flex-shrink:0;}
+  .bubble{padding:12px 14px;border-radius:12px;background:rgba(255,255,255,0.04);line-height:1.5;white-space:pre-wrap;}
+  .bubble.user{background:linear-gradient(90deg,var(--accent),#0bc7a1);color:white;}
+  .controls{display:flex;gap:12px;padding:12px;border-top:1px solid rgba(255,255,255,0.03);align-items:center;background:transparent;}
+  .input{flex:1;padding:12px;border-radius:20px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;outline:none;}
+
+  /* small helpers */
+  .row{display:flex;align-items:center;gap:8px;}
+  .icon{width:18px;height:18px;display:inline-block;}
+  .muted{color:var(--muted);font-size:13px;}
+
+  /* light theme */
+  body.light .sidebar{background:#fff; color:var(--light-text);}
+  body.light .history-item{background:#f1f3f5;}
+  body.light .chat-wrap{background:var(--light-card);}
+  body.light .bubble{background:#f2f4f6;color:var(--light-text);}
+  body.light .bubble.user{background:var(--accent); color:#fff;}
+  body.light .controls{background:var(--light-panel); border-top:1px solid #eee;}
+  body.light .input{background:#fff;border:1px solid #eee;color:var(--light-text);}
+
+  .logo-side {
+    width: 70%;
+    margin: 0 auto 14px auto;
+    display: block;
+    border-radius: 50%;    /* ← ทำเป็นวงกลม */
+    object-fit: cover;     /* ← จัดภาพให้พอดี */
+
+
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <img src="images/logo.png" class="logo-side">
+
+    <button class="btn new-chat" id="newBtn">+ New Chat</button>
+    <div class="small">History</div>
+    <div class="history-list" id="historyList"></div>
+    <div class="small">Settings</div>
+    <div class="row">
+      <label class="small">Theme</label>
+      <select id="themeSel">
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+      </select>
+    </div>
+    <button class="btn" id="clearAllBtn">Clear All History</button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="row">
+        <strong>CPE Chat Bot</strong>
+        <div class="muted" id="sessionLabel"> — New Chat</div>
+      </div>
+      <div class="row">
+        <button class="btn" id="copyBtn">Copy</button>
+        <button class="btn" id="clearBtn">Clear</button>
+      </div>
+    </div>
+
+    <div class="chat-wrap">
+      <div class="messages" id="messages"></div>
+
+      <div class="controls">
+        <input id="inputBox" class="input" placeholder="พิมพ์ข้อความ..." />
+        <button id="sendBtn" class="btn">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------------------------
+  Simple client-side conversation + history + streaming
+--------------------------- */
+const API_BASE = window.location.origin; // expects backend on same origin or set full URL e.g. http://127.0.0.1:5000
+const historyKey = "cpe_chat_history_v1";
+
+let sessions = []; // array of {id, title, messages: [{role,content}], createdAt}
+let currentId = null;
+
+// helpers DOM
+const messagesEl = document.getElementById("messages");
+const inputBox = document.getElementById("inputBox");
+const sendBtn = document.getElementById("sendBtn");
+const historyListEl = document.getElementById("historyList");
+const sessionLabel = document.getElementById("sessionLabel");
+const themeSel = document.getElementById("themeSel");
+const clearBtn = document.getElementById("clearBtn");
+const newBtn = document.getElementById("newBtn");
+const clearAllBtn = document.getElementById("clearAllBtn");
+
+function saveSessions(){ localStorage.setItem(historyKey, JSON.stringify(sessions)); }
+function loadSessions(){ let raw = localStorage.getItem(historyKey); if(raw) sessions = JSON.parse(raw); if(!sessions || !sessions.length) { createNewSession(); } else { currentId = sessions[0].id; renderHistory(); renderCurrent(); } }
+function createNewSession(){
+  const id = Date.now().toString();
+  const s = { id, title: "New Chat", messages: [], createdAt: Date.now() };
+  sessions.unshift(s);
+  currentId = id;
+  saveSessions(); renderHistory(); renderCurrent();
+}
+function clearAllHistory(){ sessions = []; localStorage.removeItem(historyKey); createNewSession(); }
+
+function getCurrentSession(){ return sessions.find(s=>s.id===currentId); }
+function addMessageToCurrent(role, content){
+  const s = getCurrentSession();
+  s.messages.push({role,content});
+  saveSessions();
+  renderCurrent();
+}
+function renderHistory(){
+  historyListEl.innerHTML = "";
+  sessions.forEach(s=>{
+    const d = document.createElement("div");
+    d.className = "history-item";
+    d.innerText = s.title + " — " + new Date(s.createdAt).toLocaleString();
+    d.onclick = ()=>{ currentId = s.id; renderCurrent(); }
+    historyListEl.appendChild(d);
+  });
+}
+function renderCurrent(){
+  const s = getCurrentSession();
+  sessionLabel.innerText = ` — ${s.title}`;
+  messagesEl.innerHTML = "";
+  s.messages.forEach(m=>{
+    appendBubble(m.role, m.content);
+  });
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+/* append bubble dom */
+/* append bubble dom */
+function appendBubble(role, text, streaming=false){
+  const row = document.createElement("div");
+  row.className = "msg-row " + (role === "user" ? "user" : "assistant");
+
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  avatar.style.width = '36px';
+  avatar.style.height = '36px';
+  avatar.style.borderRadius = '50%';
+
+  if (role === "user") {
+    avatar.style.backgroundImage = "url('images/user.png')";
+    avatar.style.backgroundSize = "cover";
+    avatar.style.backgroundPosition = "center";
+    avatar.style.backgroundColor = "transparent";
+  } else {
+    avatar.style.backgroundImage = "url('images/logo.png')";
+    avatar.style.backgroundSize = "cover";
+    avatar.style.backgroundPosition = "center";
+    avatar.style.backgroundColor = "transparent";
+
+    // ⭐ เพิ่ม animation เมื่อเป็น AI
+    avatar.classList.add("ai-typing");
+
+    // ⭐ เก็บ avatar ของ AI ล่าสุดเสมอ (หยุด animation ได้ตรงตัว)
+    window.lastAIAvatar = avatar;
+  }
+
+  const bubble = document.createElement("div");
+  bubble.className = "bubble " + (role === "user" ? "user" : "assistant");
+  bubble.innerText = text;
+
+  row.appendChild(avatar);
+  row.appendChild(bubble);
+  messagesEl.appendChild(row);
+
+  if (streaming) bubble.dataset.streaming = "1";
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  return bubble;
+}
+
+
+/* clear assistant streaming placeholder */
+function finishStreaming(bubble, text){
+  bubble.innerText = text;
+  delete bubble.dataset.streaming;
+}
+
+/* send message with SSE streaming */
+async function sendStreaming(){
+  const text = inputBox.value.trim();
+  if(!text) return;
+
+  // ผู้ใช้ส่งข้อความ
+  addMessageToCurrent("user", text);
+  appendBubble("user", text);
+  inputBox.value = "";
+
+  // AI placeholder
+  const placeholder = appendBubble("assistant", "", true);
+
+  const messages = getCurrentSession().messages;
+  const url = `${API_BASE}/chat_stream`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({messages})
+  });
+
+  if(!res.ok){
+    placeholder.innerText = "Error from server";
+
+    // ⭐ หยุด animation ถ้ามี
+    if (window.lastAIAvatar)
+      window.lastAIAvatar.classList.remove("ai-typing");
+
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let done = false;
+  let collected = "";
+
+  while(!done){
+    const {value, done: d} = await reader.read();
+    done = d;
+
+    if(value){
+      const chunk = decoder.decode(value, {stream: true});
+      const parts = chunk.split("\n\n");
+
+      for(const p of parts){
+        if(!p.trim()) continue;
+
+        // ------ END EVENT ------
+        if(p.startsWith("event: done")){
+          addMessageToCurrent("assistant", collected);
+          finishStreaming(placeholder, collected);
+
+          // ⭐ หยุด animation AI ตรง avatar ตัวล่าสุด
+          if (window.lastAIAvatar)
+            window.lastAIAvatar.classList.remove("ai-typing");
+
+          return;
+        }
+
+        // ------ STREAM DATA ------
+        const m = p.split("\n").find(l => l.startsWith("data: "));
+        if(m){
+          try{
+            const data = m.replace(/^data: /,'').trim();
+            const ch = JSON.parse(data);
+            collected += ch;
+
+            placeholder.innerText = collected;
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+          }catch(err){ console.error(err); }
+        }
+      }
+    }
+  }
+
+  // ------ FALLBACK END -------
+  addMessageToCurrent("assistant", collected);
+  finishStreaming(placeholder, collected);
+
+  // ⭐ หยุด animation ตรง avatar ตัวสุดท้ายของ AI
+  if (window.lastAIAvatar)
+    window.lastAIAvatar.classList.remove("ai-typing");
+}
+
+/* send non-streaming (full reply) */
+async function sendNonStream(){
+  const text = inputBox.value.trim();
+  if(!text) return;
+  addMessageToCurrent("user", text);
+  appendBubble("user", text);
+  inputBox.value = "";
+  const messages = getCurrentSession().messages;
+  const res = await fetch(`${API_BASE}/chat`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({messages})
+  });
+  if(!res.ok){ appendBubble("assistant","Error from server"); return; }
+  const data = await res.json();
+  addMessageToCurrent("assistant", data.reply);
+  appendBubble("assistant", data.reply);
+}
+
+/* UI bindings */
+sendBtn.onclick = ()=> sendStreaming(); // use streaming version
+inputBox.onkeydown = (e)=>{ if(e.key==='Enter' && !e.shiftKey){ sendStreaming(); } };
+
+newBtn.onclick = ()=> createNewSession();
+clearBtn.onclick = ()=> { getCurrentSession().messages=[]; saveSessions(); renderCurrent(); }
+clearAllBtn.onclick = ()=> { if(confirm("Clear all history?")) clearAllHistory(); }
+themeSel.onchange = ()=> { document.body.classList.toggle('light', themeSel.value==='light'); }
+copyBtn.onclick = ()=> navigator.clipboard.writeText( getCurrentSession().messages.map(m=>`${m.role}: ${m.content}`).join("\n") );
+
+/* init on load */
+loadSessions();
+
+/* load polyfills / helpers for streaming if needed - none extra required */
+</script>
+</body>
+</html>
