@@ -1,0 +1,9 @@
+# ไฟล์ Python
+__pycache__/
+*.pyc
+
+# ไฟล์ embeddings / model
+*.pkl
+
+# ไฟล์อื่นใหญ่ที่ไม่จำเป็น
+*.log
