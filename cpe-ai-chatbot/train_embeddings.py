@@ -13,6 +13,8 @@ answers = [item["answer"] for item in kb]
 model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2') # รองรับภาษาไทย
 
 # สร้าง embeddings
+
+
 question_embeddings = model.encode(questions, convert_to_tensor=True)
 
 # เซฟ embeddings + answers

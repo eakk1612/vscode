@@ -131,7 +131,7 @@
 /* ---------------------------
   Simple client-side conversation + history + streaming
 --------------------------- */
-const API_BASE = window.location.origin; // expects backend on same origin or set full URL e.g. http://127.0.0.1:5000
+const API_BASE = ""; // expects backend on same origin or set full URL e.g. http://127.0.0.1:5000
 const historyKey = "cpe_chat_history_v1";
 
 let sessions = []; // array of {id, title, messages: [{role,content}], createdAt}

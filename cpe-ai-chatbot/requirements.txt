@@ -1,7 +1,4 @@
 flask
 flask-cors
-scikit-learn
-joblib
-sentence-transformers
-torch
-gunicorn
+google-generativeai
+python-dotenv
